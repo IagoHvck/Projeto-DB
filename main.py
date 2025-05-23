@@ -1,9 +1,15 @@
 # main.py
 from datetime import datetime
-from database.postgres import criar_tabelas, inserir_produto, registrar_venda, fetch_vendas_por_trimestre
 from database.mongo     import inserir_comentario, listar_comentarios
+from database.produto_repo import inserir_produto as inserir_produto_zodb
 from modelos.produto    import Produto
 from utils.analises     import exibir_vendas_por_trimestre, exibir_comentarios
+from database.postgres \
+    import criar_tabelas, \
+           inserir_produto   as inserir_produto_sql, \
+           registrar_venda, \
+           fetch_vendas_por_trimestre
+
 
 def menu():
     print("""
@@ -29,10 +35,13 @@ def main():
             marca = input("Marca: ")
             preco = float(input("Preço: "))
             est   = int(input("Estoque inicial: "))
-            p = Produto(nome,cat,marca,preco,est)
-            pid = inserir_produto(p)
-            p.id = pid
-            print("✅ Produto cadastrado:", p, "\n")
+            p = Produto(nome, cat, marca, preco, est)
+            # primeiro grava no PostgreSQL
+            pid_sql = inserir_produto_sql(p)
+            p.id = pid_sql
+            # depois grava no ZODB
+            pid_zodb = inserir_produto_zodb(p)
+            print(f"✅ Produto cadastrado: SQL_ID={pid_sql}, ZODB_ID={pid_zodb} → {p}\n")
         elif opt == "3":
             pid   = int(input("ID do produto: "))
             qtd   = int(input("Quantidade vendida: "))

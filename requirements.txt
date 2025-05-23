@@ -2,3 +2,5 @@ psycopg2-binary
 pymongo
 sqlalchemy
 pandas
+zodb
+persistent
