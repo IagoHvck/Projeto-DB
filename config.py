@@ -1,8 +1,8 @@
 POSTGRES = {
     "host": "localhost",
     "database": "varejo",
-    "user": "byelo",
-    "password": "2005"
+    "user": "postgres",
+    "password": "root"
 }
 
 MONGO_URI = "mongodb://localhost:27017/"
