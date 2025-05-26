@@ -53,13 +53,13 @@ def criar_tabelas():
     );
     -- Funcionários
     CREATE TABLE IF NOT EXISTS funcionario (
-      id_funcionario SERIAL PRIMARY KEY,
+      id_funcionario     SERIAL PRIMARY KEY,
       codigo_funcionario VARCHAR(10) UNIQUE NOT NULL,
-      nome       VARCHAR(100) NOT NULL,
-      cargo      VARCHAR(50),
-      id_loja    INT REFERENCES loja(id_loja),
-      salario    DECIMAL(10,2),
-      ativo      BOOLEAN DEFAULT TRUE
+      nome               VARCHAR(100) NOT NULL,
+      cargo              VARCHAR(50),
+      id_loja            INT REFERENCES loja(id_loja),
+      salario            DECIMAL(10,2),
+      ativo              BOOLEAN DEFAULT TRUE
     );
     -- Fornecedores
     CREATE TABLE IF NOT EXISTS fornecedor (
@@ -73,25 +73,6 @@ def criar_tabelas():
       cidade         VARCHAR(50),
       estado         CHAR(2),
       ativo          BOOLEAN DEFAULT TRUE
-    );
-    -- Vendas & DW simplificado
-    CREATE TABLE IF NOT EXISTS venda (
-      id_venda     SERIAL PRIMARY KEY,
-      id_produto   INT REFERENCES produto(id_produto),
-      quantidade   INT NOT NULL,
-      valor_total  DECIMAL(12,2),
-      data_venda   TIMESTAMP NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS dim_tempo (
-      data       DATE PRIMARY KEY,
-      ano        INT, mes INT, dia INT, trimestre INT
-    );
-    CREATE TABLE IF NOT EXISTS fato_venda (
-      id_fato     SERIAL PRIMARY KEY,
-      data        DATE REFERENCES dim_tempo(data),
-      produto_id  INT REFERENCES produto(id_produto),
-      quantidade  INT,
-      valor_total DECIMAL(12,2)
     );
     -- Compras e Itens
     CREATE TABLE IF NOT EXISTS compra (
@@ -113,45 +94,49 @@ def criar_tabelas():
     );
     -- Estoque
     CREATE TABLE IF NOT EXISTS estoque (
-      id_estoque     SERIAL PRIMARY KEY,
-      id_produto     INT REFERENCES produto(id_produto),
-      id_loja        INT REFERENCES loja(id_loja),
-      quantidade_atual INT,
-      quantidade_minima INT,
-      quantidade_maxima INT,
-      UNIQUE (id_produto, id_loja)
-    );
-    -- Avaliações
-    CREATE TABLE IF NOT EXISTS avaliacao (
-      id_avaliacao SERIAL PRIMARY KEY,
-      id_produto   INT REFERENCES produto(id_produto),
-      id_cliente   INT REFERENCES cliente(id_cliente),
-      data_avaliacao TIMESTAMP,
-      nota         INT CHECK (nota >= 1 AND nota <= 5),
-      comentario   TEXT
+      id_estoque      SERIAL PRIMARY KEY,
+      id_produto      INT REFERENCES produto(id_produto),
+      id_loja         INT REFERENCES loja(id_loja),
+      quantidade_atual   INT,
+      quantidade_minima  INT,
+      quantidade_maxima  INT,
+      UNIQUE (id_produto,id_loja)
     );
     -- Promoções
     CREATE TABLE IF NOT EXISTS promocao (
-      id_promocao   SERIAL PRIMARY KEY,
-      nome_promocao VARCHAR(100) NOT NULL,
-      descricao     TEXT,
-      data_inicio   DATE,
-      data_fim      DATE,
-      percentual_desconto DECIMAL(5,2),
-      ativa         BOOLEAN DEFAULT TRUE
+      id_promocao          SERIAL PRIMARY KEY,
+      nome_promocao        VARCHAR(100) NOT NULL,
+      descricao            TEXT,
+      data_inicio          DATE,
+      data_fim             DATE,
+      percentual_desconto  DECIMAL(5,2),
+      ativa                BOOLEAN DEFAULT TRUE
     );
-    -- Produtos em Promoção
     CREATE TABLE IF NOT EXISTS produto_promocao (
       id_promocao INT REFERENCES promocao(id_promocao),
       id_produto  INT REFERENCES produto(id_produto),
       preco_promocional DECIMAL(10,2),
-      PRIMARY KEY (id_promocao, id_produto)
+      PRIMARY KEY (id_promocao,id_produto)
     );
-    -- Índices
-    CREATE INDEX IF NOT EXISTS idx_venda_data       ON venda(data_venda);
-    CREATE INDEX IF NOT EXISTS idx_produto_categoria ON produto(id_categoria);
-    CREATE INDEX IF NOT EXISTS idx_avaliacao_produto ON avaliacao(id_produto);
-    CREATE INDEX IF NOT EXISTS idx_estoque_produto   ON estoque(id_produto);
+    -- Vendas & DW
+    CREATE TABLE IF NOT EXISTS venda (
+      id_venda     SERIAL PRIMARY KEY,
+      id_produto   INT REFERENCES produto(id_produto),
+      quantidade   INT NOT NULL,
+      valor_total  DECIMAL(12,2),
+      data_venda   TIMESTAMP NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS dim_tempo (
+      data       DATE PRIMARY KEY,
+      ano        INT, mes INT, dia INT, trimestre INT
+    );
+    CREATE TABLE IF NOT EXISTS fato_venda (
+      id_fato     SERIAL PRIMARY KEY,
+      data        DATE REFERENCES dim_tempo(data),
+      produto_id  INT REFERENCES produto(id_produto),
+      quantidade  INT,
+      valor_total DECIMAL(12,2)
+    );
     """
     conn = conectar()
     with conn:
@@ -159,15 +144,14 @@ def criar_tabelas():
             cur.execute(sql)
     conn.close()
 
-# Funções CRUD genéricas para cada entidade
-
+# ——— CRUD Categoria ———
 def cadastrar_categoria(nome, descricao=None):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO categoria (nome_categoria, descricao) VALUES (%s,%s) RETURNING id_categoria;",
-                (nome, descricao)
+                "INSERT INTO categoria(nome_categoria,descricao) VALUES(%s,%s) RETURNING id_categoria;",
+                (nome,descricao)
             )
             cid = cur.fetchone()[0]
     conn.close()
@@ -181,15 +165,20 @@ def listar_categorias():
     conn.close()
     return rows
 
-# Produto
-
+# ——— CRUD Produto ———
 def cadastrar_produto(p):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO produto (codigo_produto,nome_produto,descricao,id_categoria,marca,preco_atual,unidade_medida,ativo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id_produto;",
-                (p.codigo_produto, p.nome_produto, p.descricao, p.id_categoria, p.marca, p.preco_atual, p.unidade_medida, p.ativo)
+                """INSERT INTO produto
+                  (codigo_produto,nome_produto,descricao,id_categoria,
+                   marca,preco_atual,unidade_medida,ativo)
+                  VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
+                  RETURNING id_produto;""",
+                (p.codigo_produto,p.nome_produto,p.descricao,
+                 p.id_categoria,p.marca,p.preco_atual,
+                 p.unidade_medida,p.ativo)
             )
             pid = cur.fetchone()[0]
     conn.close()
@@ -203,15 +192,18 @@ def listar_produtos():
     conn.close()
     return rows
 
-# Cliente
-
+# ——— CRUD Cliente ———
 def cadastrar_cliente(c):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO cliente (cpf,nome,email,telefone,endereco,cidade,estado,cep,ativo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id_cliente;",
-                (c.cpf,c.nome,c.email,c.telefone,c.endereco,c.cidade,c.estado,c.cep,c.ativo)
+                """INSERT INTO cliente
+                  (cpf,nome,email,telefone,endereco,cidade,estado,cep,ativo)
+                  VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  RETURNING id_cliente;""",
+                (c.cpf,c.nome,c.email,c.telefone,
+                 c.endereco,c.cidade,c.estado,c.cep,c.ativo)
             )
             cid = cur.fetchone()[0]
     conn.close()
@@ -225,15 +217,18 @@ def listar_clientes():
     conn.close()
     return rows
 
-# Loja
-
+# ——— CRUD Loja ———
 def cadastrar_loja(l):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO loja (codigo_loja,nome_loja,endereco,cidade,estado,cep,telefone,gerente,ativa) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id_loja;",
-                (l.codigo_loja,l.nome_loja,l.endereco,l.cidade,l.estado,l.cep,l.telefone,l.gerente,l.ativa)
+                """INSERT INTO loja
+                  (codigo_loja,nome_loja,endereco,cidade,estado,cep,telefone,gerente,ativa)
+                  VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  RETURNING id_loja;""",
+                (l.codigo_loja,l.nome_loja,l.endereco,
+                 l.cidade,l.estado,l.cep,l.telefone,l.gerente,l.ativa)
             )
             lid = cur.fetchone()[0]
     conn.close()
@@ -247,14 +242,16 @@ def listar_lojas():
     conn.close()
     return rows
 
-# Funcionário
-
+# ——— CRUD Funcionário ———
 def cadastrar_funcionario(f):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO funcionario (codigo_funcionario,nome,cargo,id_loja,salario,ativo) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id_funcionario;",
+                """INSERT INTO funcionario
+                  (codigo_funcionario,nome,cargo,id_loja,salario,ativo)
+                  VALUES(%s,%s,%s,%s,%s,%s)
+                  RETURNING id_funcionario;""",
                 (f.codigo_funcionario,f.nome,f.cargo,f.id_loja,f.salario,f.ativo)
             )
             fid = cur.fetchone()[0]
@@ -269,15 +266,18 @@ def listar_funcionarios():
     conn.close()
     return rows
 
-# Fornecedor
-
+# ——— CRUD Fornecedor ———
 def cadastrar_fornecedor(f):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO fornecedor (cnpj,razao_social,nome_fantasia,telefone,email,endereco,cidade,estado,ativo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id_fornecedor;",
-                (f.cnpj,f.razao_social,f.nome_fantasia,f.telefone,f.email,f.endereco,f.cidade,f.estado,f.ativo)
+                """INSERT INTO fornecedor
+                  (cnpj,razao_social,nome_fantasia,telefone,email,endereco,cidade,estado,ativo)
+                  VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  RETURNING id_fornecedor;""",
+                (f.cnpj,f.razao_social,f.nome_fantasia,
+                 f.telefone,f.email,f.endereco,f.cidade,f.estado,f.ativo)
             )
             fid = cur.fetchone()[0]
     conn.close()
@@ -291,15 +291,18 @@ def listar_fornecedores():
     conn.close()
     return rows
 
-# Compra & Itens
-
-def cadastrar_compra(c):
+# ——— CRUD Compra & ItemCompra ———
+def cadastrar_compra(c: dict):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO compra (numero_compra,id_fornecedor,id_loja,data_compra,valor_total,status_compra) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id_compra;",
-                (c['numero_compra'],c['id_fornecedor'],c['id_loja'],c['data_compra'],c['valor_total'],c['status_compra'])
+                """INSERT INTO compra
+                  (numero_compra,id_fornecedor,id_loja,data_compra,valor_total,status_compra)
+                  VALUES(%s,%s,%s,%s,%s,%s)
+                  RETURNING id_compra;""",
+                (c['numero_compra'],c['id_fornecedor'],c['id_loja'],
+                 c['data_compra'],c['valor_total'],c['status_compra'])
             )
             cid = cur.fetchone()[0]
     conn.close()
@@ -309,39 +312,43 @@ def listar_compras():
     conn = conectar()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("SELECT * FROM compra ORDER BY id_compra;")
-        rows = cur.fetchall()
-    conn.close()
-    return rows
+        return cur.fetchall()
 
-def cadastrar_item_compra(i):
+def cadastrar_item_compra(i: dict):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
+            valor = i.get('valor_total', i['quantidade']*i['preco_unitario'])
             cur.execute(
-                "INSERT INTO item_compra (id_compra,id_produto,quantidade,preco_unitario,valor_total) VALUES (%s,%s,%s,%s,%s) RETURNING id_item;",
-                (i['id_compra'],i['id_produto'],i['quantidade'],i['preco_unitario'],i['quantidade']*i['preco_unitario'])
+                """INSERT INTO item_compra
+                  (id_compra,id_produto,quantidade,preco_unitario,valor_total)
+                  VALUES(%s,%s,%s,%s,%s) RETURNING id_item;""",
+                (i['id_compra'],i['id_produto'],i['quantidade'],
+                 i['preco_unitario'],valor)
             )
-            iid = cur.fetchone()[0]
-    conn.close()
-    return iid
+            return cur.fetchone()[0]
 
 def listar_itens_compra():
     conn = conectar()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("SELECT * FROM item_compra ORDER BY id_item;")
-        rows = cur.fetchall()
-    conn.close()
-    return rows
+        return cur.fetchall()
 
-# Estoque
-
-def atualizar_estoque(e):
+# ——— CRUD Estoque ———
+def atualizar_estoque(e: dict):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO estoque (id_produto,id_loja,quantidade_atual,quantidade_minima,quantidade_maxima) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id_produto,id_loja) DO UPDATE SET quantidade_atual = EXCLUDED.quantidade_atual, quantidade_minima = EXCLUDED.quantidade_minima, quantidade_maxima = EXCLUDED.quantidade_maxima;",
-                (e['id_produto'],e['id_loja'],e['quantidade_atual'],e['quantidade_minima'],e['quantidade_maxima'])
+                """INSERT INTO estoque
+                  (id_produto,id_loja,quantidade_atual,quantidade_minima,quantidade_maxima)
+                  VALUES(%s,%s,%s,%s,%s)
+                  ON CONFLICT(id_produto,id_loja) DO UPDATE
+                  SET quantidade_atual=EXCLUDED.quantidade_atual,
+                      quantidade_minima=EXCLUDED.quantidade_minima,
+                      quantidade_maxima=EXCLUDED.quantidade_maxima;""",
+                (e['id_produto'],e['id_loja'],
+                 e['quantidade_atual'],e['quantidade_minima'],e['quantidade_maxima'])
             )
     conn.close()
     return True
@@ -350,27 +357,29 @@ def listar_estoque():
     conn = conectar()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("SELECT * FROM estoque ORDER BY id_estoque;")
-        rows = cur.fetchall()
-    conn.close()
-    return rows
+        return cur.fetchall()
 
-# Venda & DW
-
+# ——— CRUD Venda & DW ———
 def registrar_venda(id_produto, quantidade, valor_total, data_venda):
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO venda (id_produto,quantidade,valor_total,data_venda) VALUES (%s,%s,%s,%s);",
-                (id_produto, quantidade, valor_total, data_venda)
+                "INSERT INTO venda(id_produto,quantidade,valor_total,data_venda) VALUES(%s,%s,%s,%s);",
+                (id_produto,quantidade,valor_total,data_venda)
             )
             cur.execute(
-                "INSERT INTO dim_tempo (data,ano,mes,dia,trimestre) VALUES (%s, EXTRACT(YEAR FROM %s::date), EXTRACT(MONTH FROM %s::date), EXTRACT(DAY FROM %s::date), EXTRACT(QUARTER FROM %s::date)) ON CONFLICT (data) DO NOTHING;",
-                (data_venda, data_venda, data_venda, data_venda, data_venda)
+                """INSERT INTO dim_tempo(data,ano,mes,dia,trimestre)
+                   VALUES(%s,EXTRACT(YEAR FROM %s::date),
+                             EXTRACT(MONTH FROM %s::date),
+                             EXTRACT(DAY FROM %s::date),
+                             EXTRACT(QUARTER FROM %s::date))
+                   ON CONFLICT(data) DO NOTHING;""",
+                (data_venda,)*5
             )
             cur.execute(
-                "INSERT INTO fato_venda (data,produto_id,quantidade,valor_total) VALUES (%s,%s,%s,%s);",
-                (data_venda, id_produto, quantidade, valor_total)
+                "INSERT INTO fato_venda(data,produto_id,quantidade,valor_total) VALUES(%s,%s,%s,%s);",
+                (data_venda,id_produto,quantidade,valor_total)
             )
     conn.close()
 
@@ -378,10 +387,9 @@ def fetch_vendas_por_trimestre():
     conn = conectar()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(
-            "SELECT ano,trimestre,SUM(valor_total) AS total FROM fato_venda JOIN dim_tempo USING(data) GROUP BY ano,trimestre ORDER BY ano,trimestre;"
+            """SELECT ano,trimestre,SUM(valor_total) AS total
+               FROM fato_venda JOIN dim_tempo USING(data)
+               GROUP BY ano,trimestre
+               ORDER BY ano,trimestre;"""
         )
-        rows = cur.fetchall()
-    conn.close()
-    return rows
-
-# Comentários no Mongo ficam inalterados
+        return cur.fetchall()

@@ -1,9 +1,18 @@
+from ZODB import FileStorage, DB
+import transaction
+import ZODB
 from datetime import datetime
 from database.produto_repo import replicar_para_zodb
+from database.produto_repo import inserir_produto_zodb
+from database.migrator import migrar_tudo_para_zodb
 from types import SimpleNamespace
 from database.produto_repo import (
-    Produto, Cliente, Loja, 
+    Produto, Cliente, Loja, Funcionario, 
+    inserir_produto_zodb,
+    inserir_categoria_zodb,
+    root
 )
+from carai import print_zodb_tree, print_zodb_tables, print_zodb_tree_completo
 from database.postgres import (
     criar_tabelas,
     # Categoria
@@ -36,6 +45,47 @@ from rich.table import Table
 from rich.panel import Panel
 
 console = Console()
+
+def popular():
+    # Inserindo lojas
+    lojas = [
+        Loja('LJ001', 'Loja Shopping Center', 'Av. Paulista, 1500', 'São Paulo', 'SP', '01310100', '11-3456-7890', 'Carlos Silva'),
+        Loja('LJ002', 'Loja Barra Shopping', 'Av. das Américas, 4666', 'Rio de Janeiro', 'RJ', '22640102', '21-2431-8900', 'Ana Santos'),
+        Loja('LJ003', 'Loja BH Shopping', 'Rod. BR-356, 3049', 'Belo Horizonte', 'MG', '31150900', '31-3456-7890', 'Pedro Oliveira'),
+        Loja('LJ004', 'Loja Recife Shopping', 'Av. Agamenon Magalhães, 1000', 'Recife', 'PE', '52070000', '81-3456-7890', 'Maria Costa'),
+        Loja('LJ005', 'Loja Salvador Shopping', 'Av. Tancredo Neves, 2915', 'Salvador', 'BA', '41820021', '71-3456-7890', 'João Pereira'),
+        Loja('LJ006', 'Loja Porto Alegre', 'Av. Diário de Notícias, 300', 'Porto Alegre', 'RS', '90810000', '51-3456-7890', 'Paula Lima'),
+        Loja('LJ007', 'Loja Brasília Shopping', 'SCN Q 6 L 2', 'Brasília', 'DF', '70716900', '61-3456-7890', 'Roberto Alves'),
+        Loja('LJ008', 'Loja Curitiba Shopping', 'Av. das Torres, 1700', 'Curitiba', 'PR', '82840730', '41-3456-7890', 'Juliana Martins')
+    ]
+    for loja in lojas:
+        root[loja.codigo_loja] = loja
+    # Inserindo funcionários
+    funcionarios = [
+        Funcionario('FUNC001', 'Carlos Silva', 'Gerente', 'LJ001', 8000.00),
+        Funcionario('FUNC002', 'Mariana Rocha', 'Vendedor', 'LJ001', 2500.00),
+        Funcionario('FUNC003', 'José Santos', 'Vendedor', 'LJ001', 2500.00),
+        Funcionario('FUNC004', 'Laura Ferreira', 'Caixa', 'LJ001', 2200.00),
+        Funcionario('FUNC005', 'Ana Santos', 'Gerente', 'LJ002', 8000.00),
+        Funcionario('FUNC006', 'Bruno Costa', 'Vendedor', 'LJ002', 2500.00),
+        Funcionario('FUNC007', 'Carla Almeida', 'Vendedor', 'LJ002', 2500.00),
+        Funcionario('FUNC008', 'Diego Pereira', 'Caixa', 'LJ002', 2200.00),
+        Funcionario('FUNC009', 'Pedro Oliveira', 'Gerente', 'LJ003', 8000.00),
+        Funcionario('FUNC010', 'Fernanda Lima', 'Vendedor', 'LJ003', 2500.00),
+        Funcionario('FUNC011', 'Ricardo Silva', 'Vendedor', 'LJ003', 2500.00),
+        Funcionario('FUNC012', 'Tatiana Souza', 'Caixa', 'LJ003', 2200.00),
+        Funcionario('FUNC013', 'Maria Costa', 'Gerente', 'LJ004', 8000.00),
+        Funcionario('FUNC014', 'Anderson Melo', 'Vendedor', 'LJ004', 2500.00),
+        Funcionario('FUNC015', 'Beatriz Nunes', 'Vendedor', 'LJ004', 2500.00),
+        Funcionario('FUNC016', 'Cláudio Ribeiro', 'Caixa', 'LJ004', 2200.00),
+        Funcionario('FUNC017', 'João Pereira', 'Gerente', 'LJ005', 8000.00),
+        Funcionario('FUNC018', 'Sandra Matos', 'Vendedor', 'LJ005', 2500.00),
+        Funcionario('FUNC019', 'Marcos Dias', 'Vendedor', 'LJ005', 2500.00),
+        Funcionario('FUNC020', 'Elaine Barros', 'Caixa', 'LJ005', 2200.00)
+    ]
+    for funcionario in funcionarios:
+        root[funcionario.codigo_funcionario] = funcionario
+    migrar_tudo_para_zodb()      # sincroniza tudo do Postgres → ZODB
 
 def criar_esquemas():
     criar_tabelas()
@@ -72,30 +122,61 @@ def listar_categoria_flow():
 # ---------------- Produto ----------------
 
 def cadastrar_produto_flow():
+    # 1) coleta dos dados
     fields = {
         'codigo_produto': 'Código do produto',
-        'nome_produto': 'Nome do produto',
-        'descricao': 'Descrição (opcional)',
-        'id_categoria': 'ID da categoria (opcional)',
-        'marca': 'Marca (opcional)',
-        'preco_atual': 'Preço R$' ,
+        'nome_produto':   'Nome do produto',
+        'descricao':      'Descrição (opcional)',
+        'id_categoria':   'ID da categoria (opcional)',
+        'marca':          'Marca (opcional)',
+        'preco_atual':    'Preço R$',
         'unidade_medida': 'Unidade de medida (opcional)',
-        'ativo': 'Ativo (True/False)'
+        'ativo':          'Ativo (True/False)'
     }
     data = {}
-    for f,p in fields.items():
-        val = console.input(f"[cyan]{p}:[/] ")
+    for f, prompt in fields.items():
+        val = console.input(f"[cyan]{prompt}:[/] ")
         data[f] = val or None
-    # conversões
+
+    # 2) conversões de tipo
     data['id_categoria'] = int(data['id_categoria']) if data['id_categoria'] else None
-    data['preco_atual'] = float(data['preco_atual'])
-    data['ativo'] = data['ativo'].lower() in ('true','1','sim','s')
+    data['preco_atual']  = float(data['preco_atual'])
+    data['ativo']        = data['ativo'].lower() in ('true', '1', 'sim', 's')
+
+    # 3) instancia o domínio Produto
     p = Produto(**data)
+
+    # 4) persiste no PostgreSQL
     pid = cadastrar_produto(p)
-    zid = inserir_zodb(p)
-    console.print(f"✅ Produto SQL #[bold]{pid}[/bold] / ZODB #[bold]{zid}[/bold]", style="green")
-    replicar_para_zodb()
-    
+    p.id = pid  # atribui o ID gerado
+
+    # 5) garante que a categoria exista no ZODB
+    if p.id_categoria is not None and p.id_categoria not in root['categorias']:
+        # busca descrição no Postgres para manter consistência
+        desc = None
+        for c in listar_categorias():
+            if c['id_categoria'] == p.id_categoria:
+                desc = c.get('descricao')
+                break
+        inserir_categoria_zodb(p.id_categoria, desc)
+
+    # 6) persiste no ZODB
+    zid = inserir_produto_zodb(p)
+
+    console.print(
+        f"✅ Produto cadastrado:\n"
+        f"   • SQL ID: [bold]{pid}[/bold]\n"
+        f"   • ZODB ID: [bold]{zid}[/bold]\n"
+        f"   • {p}\n",
+        style="green"
+    )
+
+def get_zodb_root():
+    storage = FileStorage.FileStorage('zodb_storage.fs', read_only=True)
+    db = DB(storage)
+    connection = db.open()
+    root = connection.root()
+    return root
 
 def listar_produto_flow():
     produtos = listar_produtos()
@@ -107,6 +188,11 @@ def listar_produto_flow():
     for p in produtos:
         table.add_row(str(p['id_produto']), p['codigo_produto'], p['nome_produto'], f"R$ {p['preco_atual']}")
     console.print(table)
+
+    root = get_zodb_root()
+    print_zodb_tree(root)
+    print_zodb_tables(root)
+    print_zodb_tree_completo(root)
 
 # ---------------- Cliente ----------------
 
@@ -358,6 +444,7 @@ submenu_coment    = {'1':('Inserir', inserir_comentario_flow),'2':('Listar', lis
 # Menu principal
 COMMANDS = {
     'esquemas':('Criar esquemas', criar_esquemas),
+    'popular':('Popular os Esquemas', popular),
     'categoria':('Menu categoria', lambda: create_submenu('Categoria', submenu_categoria)),
     'produto'  :('Menu produto', lambda: create_submenu('Produto', submenu_produto)),
     'cliente'  :('Menu cliente', lambda: create_submenu('Cliente', submenu_cliente)),
