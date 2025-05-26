@@ -383,30 +383,6 @@ def popular():
             ('01234567000199', 'Melitta do Brasil', 'Melitta', '47-3801-5000', 'sac@melitta.com.br', 'Rua Dona Francisca, 8300', 'Joinville', 'SC', True),
         ]),
 
-        #clientes
-        ("""
-         INSERT INTO clientes
-           (cpf, nome, email, telefone, endereco, cidade, estado, cep)
-         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-         ON CONFLICT DO NOTHING;
-        """, [
-            ('12345678901', 'Paulo Henrique Silva', 'paulo.silva@email.com', '11-98765-4321', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234567', True),
-            ('23456789012', 'Ana Maria Santos', 'ana.santos@email.com', '11-97654-3210', 'Av. Paulista, 456', 'São Paulo', 'SP', '01310100', True),
-            ('34567890123', 'Roberto Carlos Oliveira', 'roberto.oliveira@email.com', '21-96543-2109', 'Rua Copacabana, 789', 'Rio de Janeiro', 'RJ', '22020050', True),
-            ('45678901234', 'Juliana Costa Lima', 'juliana.lima@email.com', '31-95432-1098', 'Av. Afonso Pena, 321', 'Belo Horizonte', 'MG', '30130005', True),
-            ('56789012345', 'Fernando Alves Costa', 'fernando.costa@email.com', '81-94321-0987', 'Av. Boa Viagem, 654', 'Recife', 'PE', '51020180', True),
-            ('67890123456', 'Mariana Ferreira Souza', 'mariana.souza@email.com', '71-93210-9876', 'Av. Oceânica, 987', 'Salvador', 'BA', '40160060', True),
-            ('78901234567', 'Alexandre Martins Silva', 'alexandre.silva@email.com', '51-92109-8765', 'Rua da Praia, 147', 'Porto Alegre', 'RS', '90020060', True),
-            ('89012345678', 'Camila Rodrigues Santos', 'camila.santos@email.com', '61-91098-7654', 'SQS 308 Bloco C', 'Brasília', 'DF', '70355030', True),
-            ('90123456789', 'Ricardo Pereira Lima', 'ricardo.lima@email.com', '41-90987-6543', 'Rua XV de Novembro, 258', 'Curitiba', 'PR', '80020310', True),
-            ('01234567890', 'Patricia Almeida Costa', 'patricia.costa@email.com', '11-89876-5432', 'Alameda Santos, 369', 'São Paulo', 'SP', '01419002', True),
-            ('11223344556', 'Bruno Carvalho Dias', 'bruno.dias@email.com', '21-88765-4321', 'Av. Rio Branco, 741', 'Rio de Janeiro', 'RJ', '20040008', True),
-            ('22334455667', 'Letícia Nunes Oliveira', 'leticia.oliveira@email.com', '31-87654-3210', 'Rua da Bahia, 852', 'Belo Horizonte', 'MG', '30160011', True),
-            ('33445566778', 'Carlos Eduardo Santos', 'carlos.santos@email.com', '81-86543-2109', 'Rua do Sol, 963', 'Recife', 'PE', '50030230', True),
-            ('44556677889', 'Daniela Sousa Lima', 'daniela.lima@email.com', '71-85432-1098', 'Av. Sete de Setembro, 159', 'Salvador', 'BA', '40060500', True),
-            ('55667788990', 'Marcelo Ferreira Costa', 'marcelo.costa@email.com', '51-84321-0987', 'Av. Ipiranga, 753', 'Porto Alegre', 'RS', '90160091', True),
-        ]),
-
         #item-compra
         ("""
          INSERT INTO item_compra
