@@ -4,7 +4,7 @@ POSTGRES = {
     "port": 5432,
     "database": "varejo",
     "user": "postgres",
-    "password": "root"
+    "password": "NovaSenha123!"
 }
 
 MONGO_URI = "mongodb://localhost:27017"
