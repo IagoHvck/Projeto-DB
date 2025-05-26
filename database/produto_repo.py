@@ -1,9 +1,11 @@
+# database/produto_repo.py
 from ZODB import DB, FileStorage
 from persistent import Persistent
 from BTrees.OOBTree import OOBTree
 import transaction
 
-# Modelo de domínio para Produto
+# —————— Classes de Domínio ——————
+
 class Produto:
     def __init__(
         self,
@@ -29,33 +31,54 @@ class Produto:
     def __repr__(self):
         status = 'Sim' if self.ativo else 'Não'
         return (
-            f"[{self.id}] {self.codigo_produto} - {self.nome_produto} ({self.marca}) - "
-            f"R${self.preco_atual:.2f} [{self.unidade_medida}] | Ativo: {status}"
+            f"[{self.id}] {self.codigo_produto} - {self.nome_produto} "
+            f"({self.marca}) R${self.preco_atual:.2f} [{self.unidade_medida}] | Ativo: {status}"
         )
+
+class Cliente:
+    def __init__(self, cpf, nome, email, telefone, endereco, cidade, estado, cep, ativo=True):
+        self.cpf       = cpf
+        self.nome      = nome
+        self.email     = email
+        self.telefone  = telefone
+        self.endereco  = endereco
+        self.cidade    = cidade
+        self.estado    = estado
+        self.cep       = cep
+        self.ativo     = ativo
+
+class Loja:
+    def __init__(self, codigo_loja, nome_loja, endereco, cidade, estado, cep, telefone, gerente, ativa=True):
+        self.codigo_loja = codigo_loja
+        self.nome_loja   = nome_loja
+        self.endereco    = endereco
+        self.cidade      = cidade
+        self.estado      = estado
+        self.cep         = cep
+        self.telefone    = telefone
+        self.gerente     = gerente
+        self.ativa       = ativa
+
+# —————— ZODB para Produto ——————
 
 # Inicializa/abre o banco ZODB
 storage = FileStorage.FileStorage('zodb_storage.fs')
-db = DB(storage)
-conn = db.open()
-root = conn.root()
+db      = DB(storage)
+conn    = db.open()
+root    = conn.root()
 
-# Prepara a árvore de produtos e o contador de IDs
 if 'produtos' not in root:
     root['produtos'] = OOBTree()
     root['next_produto_id'] = 1
     transaction.commit()
 
-# Classe persistente baseada no modelo Produto
 class PersistentProduto(Produto, Persistent):
     pass
-
-# --- Repositório ZODB para Produtos ---
 
 def inserir_produto(produto: Produto) -> int:
     """
     Persiste um Produto no ZODB e retorna seu ID.
     """
-    # Cria uma cópia persistente
     p = PersistentProduto(
         produto.codigo_produto,
         produto.nome_produto,
@@ -73,24 +96,12 @@ def inserir_produto(produto: Produto) -> int:
     transaction.commit()
     return pid
 
-
 def fetch_todos_os_produtos() -> list[Produto]:
-    """
-    Retorna a lista de todos os Produtos armazenados no ZODB.
-    """
     return list(root['produtos'].values())
 
-
 def buscar_produto(produto_id: int) -> Produto | None:
-    """
-    Retorna o Produto com o ID informado, ou None se não existir.
-    """
     return root['produtos'].get(produto_id)
 
-
 def fechar_banco():
-    """
-    Fecha a conexão com o banco ZODB.
-    """
     conn.close()
     db.close()
