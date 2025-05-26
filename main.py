@@ -1,9 +1,8 @@
 from datetime import datetime
+from database.produto_repo import replicar_para_zodb
 from types import SimpleNamespace
 from database.produto_repo import (
-    Produto, Cliente, Loja,
-    inserir_produto as inserir_zodb,
-    fetch_todos_os_produtos, buscar_produto
+    Produto, Cliente, Loja, 
 )
 from database.postgres import (
     criar_tabelas,
@@ -95,6 +94,8 @@ def cadastrar_produto_flow():
     pid = cadastrar_produto(p)
     zid = inserir_zodb(p)
     console.print(f"✅ Produto SQL #[bold]{pid}[/bold] / ZODB #[bold]{zid}[/bold]", style="green")
+    replicar_para_zodb()
+    
 
 def listar_produto_flow():
     produtos = listar_produtos()
