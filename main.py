@@ -1,6 +1,7 @@
 from ZODB import FileStorage, DB
 import transaction
 import ZODB
+from database.popular import popular as popular_func
 from datetime import datetime
 from database.produto_repo import replicar_para_zodb
 from database.produto_repo import inserir_produto_zodb
@@ -44,12 +45,18 @@ from utils.analises import exibir_vendas_por_trimestre
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from database.test import test_integracao
 
 console = Console()
 
+# main.py (ou onde estiver o seu popular())
+from database.postgres import conectar
+from database.migrator import migrar_tudo_para_zodb
+
 def popular():
+    from database.postgres import conectar
     inserts = [
-        # Categorias
+        # 1) Categorias
         ("""
          INSERT INTO categoria (nome_categoria, descricao)
          VALUES (%s, %s)
@@ -63,76 +70,411 @@ def popular():
              ('Beleza e Cuidados', 'Cosméticos, perfumaria e cuidados pessoais'),
              ('Livros e Papelaria', 'Livros, material escolar e escritório'),
              ('Brinquedos', 'Brinquedos e jogos infantis'),
-         ]),
+        ]),
 
-        # Produtos
-        ("""
-         INSERT INTO produto
-           (codigo_produto, nome_produto, descricao, id_categoria, marca, preco_atual, unidade_medida)
-         VALUES (%s,%s,%s,%s,%s,%s,%s)
-         ON CONFLICT DO NOTHING;
-        """, [
-             ('ELET001', 'Smartphone Galaxy S22',  'Smartphone Samsung Galaxy S22 128GB', 1, 'Samsung', 3499.00, 'UN'),
-             ('ELET002', 'Notebook Dell Inspiron 15','Notebook Dell i5 8GB RAM 512GB SSD', 1, 'Dell',   2899.00, 'UN'),
-             ('ELET003', 'TV Smart 50" 4K',         'Smart TV LG 50 polegadas 4K',        1, 'LG',     2199.00, 'UN'),
-             # … resto dos produtos …
-         ]),
-
-        # Lojas
+        # 2) Lojas
         ("""
          INSERT INTO loja
            (codigo_loja, nome_loja, endereco, cidade, estado, cep, telefone, gerente)
          VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-         ON CONFLICT DO NOTHING;
+         ON CONFLICT (codigo_loja) DO NOTHING;
         """, [
-             ('LJ001', 'Loja Shopping Center', 'Av. Paulista, 1500', 'São Paulo', 'SP', '01310100', '11-3456-7890', 'Carlos Silva'),
-             ('LJ002', 'Loja Barra Shopping',   'Av. das Américas, 4666','Rio de Janeiro','RJ','22640102','21-2431-8900','Ana Santos'),
-             # … resto das lojas …
-         ]),
+            ('LJ001', 'Loja Shopping Center', 'Av. Paulista, 1500', 'São Paulo', 'SP', '01310100', '11-3456-7890', 'Carlos Silva'),
+            ('LJ002', 'Loja Barra Shopping', 'Av. das Américas, 4666', 'Rio de Janeiro', 'RJ', '22640102', '21-2431-8900', 'Ana Santos'),
+            ('LJ003', 'Loja BH Shopping', 'Rod. BR-356, 3049', 'Belo Horizonte', 'MG', '31150900', '31-3456-7890', 'Pedro Oliveira'),
+            ('LJ004', 'Loja Recife Shopping', 'Av. Agamenon Magalhães, 1000', 'Recife', 'PE', '52070000', '81-3456-7890', 'Maria Costa'),
+            ('LJ005', 'Loja Salvador Shopping', 'Av. Tancredo Neves, 2915', 'Salvador', 'BA', '41820021', '71-3456-7890', 'João Pereira'),
+            ('LJ006', 'Loja Porto Alegre', 'Av. Diário de Notícias, 300', 'Porto Alegre', 'RS', '90810000', '51-3456-7890', 'Paula Lima'),
+            ('LJ007', 'Loja Brasília Shopping', 'SCN Q 6 L 2', 'Brasília', 'DF', '70716900', '61-3456-7890', 'Roberto Alves'),
+            ('LJ008', 'Loja Curitiba Shopping', 'Av. das Torres, 1700', 'Curitiba', 'PR', '82840730', '41-3456-7890', 'Juliana Martins'),
+        ]),
 
-        # Funcionários
+        # 3) Produtos
+        ("""
+         INSERT INTO produto
+           (codigo_produto,nome_produto,descricao,id_categoria,marca,preco_atual,unidade_medida,ativo)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT (codigo_produto) DO NOTHING;
+        """, [
+            ('ELET001', 'Smartphone Galaxy S22', 'Smartphone Samsung Galaxy S22 128GB', 1, 'Samsung', 3499.00, 'UN', True),
+            ('ELET002', 'Notebook Dell Inspiron 15', 'Notebook Dell i5 8GB RAM 512GB SSD', 1, 'Dell', 2899.00, 'UN', True),
+            ('ELET003', 'TV Smart 50" 4K', 'Smart TV LG 50 polegadas 4K', 1, 'LG', 2199.00, 'UN', True),
+            ('ELET004', 'Fone Bluetooth', 'Fone de ouvido bluetooth JBL', 1, 'JBL', 249.90, 'UN', True),
+            ('ELET005', 'Mouse Gamer', 'Mouse gamer RGB Logitech', 1, 'Logitech', 199.90, 'UN', True),
+
+            ('ALIM001', 'Café Premium 500g', 'Café torrado e moído premium', 2, 'Melitta', 24.90, 'PCT', True),
+            ('ALIM002', 'Chocolate ao Leite 200g', 'Chocolate ao leite Nestlé', 2, 'Nestlé', 8.90, 'UN', True),
+            ('ALIM003', 'Água Mineral 1,5L', 'Água mineral sem gás', 2, 'Crystal', 2.90, 'UN', True),
+            ('ALIM004', 'Biscoito Integral', 'Biscoito integral multigrãos', 2, 'Vitarella', 4.50, 'PCT', True),
+            ('ALIM005', 'Suco Natural 1L', 'Suco de laranja natural', 2, 'Del Valle', 7.90, 'UN', True),
+
+            ('VEST001', 'Camisa Polo Masculina', 'Camisa polo algodão masculina', 3, 'Lacoste', 189.90, 'UN', True),
+            ('VEST002', 'Calça Jeans Feminina', 'Calça jeans feminina skinny', 3, 'Levi\'s', 259.90, 'UN', True),
+            ('VEST003', 'Tênis Running', 'Tênis para corrida unissex', 3, 'Nike', 399.90, 'PAR', True),
+            ('VEST004', 'Vestido Casual', 'Vestido casual feminino', 3, 'Renner', 119.90, 'UN', True),
+            ('VEST005', 'Mochila Escolar', 'Mochila escolar resistente', 3, 'Samsonite', 149.90, 'UN', True),
+
+            ('CASA001', 'Jogo de Panelas 5 peças', 'Jogo de panelas antiaderente', 4, 'Tramontina', 299.90, 'JG', True),
+            ('CASA002', 'Edredom Casal', 'Edredom casal 100% algodão', 4, 'Santista', 189.90, 'UN', True),
+            ('CASA003', 'Conjunto de Toalhas', 'Kit 4 toalhas de banho', 4, 'Karsten', 99.90, 'KIT', True),
+            ('CASA004', 'Luminária de Mesa', 'Luminária LED para mesa', 4, 'Philips', 89.90, 'UN', True),
+            ('CASA005', 'Organizador Multiuso', 'Organizador plástico com divisórias', 4, 'Ordene', 39.90, 'UN', True),
+
+            ('ESPO001', 'Bola de Futebol', 'Bola de futebol oficial', 5, 'Adidas', 129.90, 'UN', True),
+            ('ESPO002', 'Kit Halteres 10kg', 'Par de halteres ajustáveis', 5, 'Kikos', 199.90, 'KIT', True),
+            ('ESPO003', 'Tapete Yoga', 'Tapete para yoga antiderrapante', 5, 'Acte Sports', 79.90, 'UN', True),
+            ('ESPO004', 'Bicicleta Aro 29', 'Mountain bike aro 29', 5, 'Caloi', 1499.00, 'UN', True),
+            ('ESPO005', 'Corda de Pular', 'Corda de pular profissional', 5, 'Speedo', 39.90, 'UN', True),
+
+            ('BELZ001', 'Shampoo 400ml', 'Shampoo hidratante', 6, 'Pantene', 18.90, 'UN', True),
+            ('BELZ002', 'Creme Hidratante 200ml', 'Creme hidratante corporal', 6, 'Nivea', 24.90, 'UN', True),
+            ('BELZ003', 'Perfume Masculino 100ml', 'Perfume masculino amadeirado', 6, 'Boticário', 189.90, 'UN', True),
+            ('BELZ004', 'Base Líquida', 'Base líquida cobertura média', 6, 'MAC', 249.90, 'UN', True),
+            ('BELZ005', 'Kit Maquiagem', 'Kit maquiagem completo', 6, 'Ruby Rose', 89.90, 'KIT', True),
+
+            ('LIVR001', 'Livro Best Seller', 'Romance contemporâneo', 7, 'Intrínseca', 49.90, 'UN', True),
+            ('LIVR002', 'Caderno Universitário', 'Caderno 200 folhas', 7, 'Tilibra', 24.90, 'UN', True),
+            ('LIVR003', 'Kit Canetas Coloridas', 'Kit 12 canetas coloridas', 7, 'BIC', 19.90, 'KIT', True),
+            ('LIVR004', 'Agenda 2024', 'Agenda executiva 2024', 7, 'Foroni', 34.90, 'UN', True),
+            ('LIVR005', 'Calculadora Científica', 'Calculadora científica completa', 7, 'Casio', 89.90, 'UN', True),
+
+            ('BRIN001', 'Lego Classic 500 peças', 'Kit Lego construção classic', 8, 'Lego', 299.90, 'CX', True),
+            ('BRIN002', 'Boneca Fashion', 'Boneca fashion com acessórios', 8, 'Mattel', 149.90, 'UN', True),
+            ('BRIN003', 'Quebra-cabeça 1000 peças', 'Quebra-cabeça paisagem', 8, 'Grow', 59.90, 'CX', True),
+            ('BRIN004', 'Carrinho Hot Wheels', 'Carrinho colecionável', 8, 'Hot Wheels', 12.90, 'UN', True),
+            ('BRIN005', 'Jogo de Tabuleiro', 'Jogo War clássico', 8, 'Grow', 89.90, 'CX', True),
+        ]),
+
+        # 4) Funcionários
         ("""
          INSERT INTO funcionario
-           (codigo_funcionario, nome, cargo, id_loja, salario)
+           (codigo_funcionario,nome,cargo,id_loja,salario,ativo)
+         VALUES (%s,%s,%s,%s,%s,%s)
+         ON CONFLICT (codigo_funcionario) DO NOTHING;
+        """, [
+            ('FUNC001','Carlos Silva','Gerente',1,8000.00,True),
+            ('FUNC002','Mariana Rocha','Vendedor',1,2500.00,True),
+
+            ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00,True),
+            ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00,True),
+            ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00,True),
+            ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00,True),
+
+            ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00,True),
+            ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00,True),
+            ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00,True),
+            ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00,True),
+
+            ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00,True),
+            ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00,True),
+            ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00,True),
+            ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00,True),
+
+            ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00,True),
+            ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00,True),
+            ('FUNC015', 'Beatriz Nunes', 'Vendedor', 4, 2500.00,True),
+            ('FUNC016', 'Cláudio Ribeiro', 'Caixa', 4, 2200.00,True),
+
+            ('FUNC017', 'João Pereira', 'Gerente', 5, 8000.00,True),
+            ('FUNC018', 'Sandra Matos', 'Vendedor', 5, 2500.00,True),
+            ('FUNC019', 'Marcos Dias', 'Vendedor', 5, 2500.00,True),
+            ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00,True),
+        ]),
+
+        # 5) Clientes
+        ("""
+         INSERT INTO cliente
+           (cpf,nome,email,telefone,endereco,cidade,estado,cep,ativo)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT (cpf) DO NOTHING;
+        """, [
+            ('12345678901', 'Paulo Henrique Silva', 'paulo.silva@email.com', '11-98765-4321', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234567',True),
+            ('23456789012', 'Ana Maria Santos', 'ana.santos@email.com', '11-97654-3210', 'Av. Paulista, 456', 'São Paulo', 'SP', '01310100',True),
+            ('34567890123', 'Roberto Carlos Oliveira', 'roberto.oliveira@email.com', '21-96543-2109', 'Rua Copacabana, 789', 'Rio de Janeiro', 'RJ', '22020050',True),
+            ('45678901234', 'Juliana Costa Lima', 'juliana.lima@email.com', '31-95432-1098', 'Av. Afonso Pena, 321', 'Belo Horizonte', 'MG', '30130005',True),
+            ('56789012345', 'Fernando Alves Costa', 'fernando.costa@email.com', '81-94321-0987', 'Av. Boa Viagem, 654', 'Recife', 'PE', '51020180',True),
+            ('67890123456', 'Mariana Ferreira Souza', 'mariana.souza@email.com', '71-93210-9876', 'Av. Oceânica, 987', 'Salvador', 'BA', '40160060',True),
+            ('78901234567', 'Alexandre Martins Silva', 'alexandre.silva@email.com', '51-92109-8765', 'Rua da Praia, 147', 'Porto Alegre', 'RS', '90020060',True),
+            ('89012345678', 'Camila Rodrigues Santos', 'camila.santos@email.com', '61-91098-7654', 'SQS 308 Bloco C', 'Brasília', 'DF', '70355030',True),
+            ('90123456789', 'Ricardo Pereira Lima', 'ricardo.lima@email.com', '41-90987-6543', 'Rua XV de Novembro, 258', 'Curitiba', 'PR', '80020310',True),
+            ('01234567890', 'Patricia Almeida Costa', 'patricia.costa@email.com', '11-89876-5432', 'Alameda Santos, 369', 'São Paulo', 'SP', '01419002',True),
+            ('11223344556', 'Bruno Carvalho Dias', 'bruno.dias@email.com', '21-88765-4321', 'Av. Rio Branco, 741', 'Rio de Janeiro', 'RJ', '20040008',True),
+            ('22334455667', 'Letícia Nunes Oliveira', 'leticia.oliveira@email.com', '31-87654-3210', 'Rua da Bahia, 852', 'Belo Horizonte', 'MG', '30160011',True),
+            ('33445566778', 'Carlos Eduardo Santos', 'carlos.santos@email.com', '81-86543-2109', 'Rua do Sol, 963', 'Recife', 'PE', '50030230',True),
+            ('44556677889', 'Daniela Sousa Lima', 'daniela.lima@email.com', '71-85432-1098', 'Av. Sete de Setembro, 159', 'Salvador', 'BA', '40060500',True),
+            ('55667788990', 'Marcelo Ferreira Costa', 'marcelo.costa@email.com', '51-84321-0987', 'Av. Ipiranga, 753', 'Porto Alegre', 'RS', '90160091',True),
+        ]),
+
+        # 6) Fornecedores
+        ("""
+         INSERT INTO fornecedor
+           (cnpj,razao_social,nome_fantasia,telefone,email,endereco,cidade,estado,ativo)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT (cnpj) DO NOTHING;
+        """, [
+            ('12345678000100', 'Samsung Eletrônicos do Brasil LTDA', 'Samsung Brasil', '11-5644-2000', 'contato@samsung.com.br', 'Av. Dr. Chucri Zaidan, 1240', 'São Paulo', 'SP',True),
+            ('23456789000111', 'Dell Computadores do Brasil LTDA', 'Dell Brasil', '11-5503-5000', 'vendas@dell.com.br', 'Av. Industrial, 700', 'Eldorado do Sul', 'RS',True),
+            ('34567890000122', 'Nestlé Brasil LTDA', 'Nestlé', '11-2199-2999', 'faleconosco@nestle.com.br', 'Av. Nações Unidas, 12495', 'São Paulo', 'SP',True),
+            ('45678901000133', 'Nike do Brasil Com. e Part. LTDA', 'Nike Brasil', '11-5102-4400', 'atendimento@nike.com.br', 'Av. das Nações Unidas, 14261', 'São Paulo', 'SP',True),
+            ('56789012000144', 'Tramontina S.A.', 'Tramontina', '54-3461-8200', 'sac@tramontina.com.br', 'Rod. RS-324 Km 2,5', 'Carlos Barbosa', 'RS',True),
+            ('67890123000155', 'Procter & Gamble do Brasil S.A.', 'P&G Brasil', '11-3046-5800', 'atendimento@pg.com.br', 'Av. Brigadeiro Faria Lima, 3900', 'São Paulo', 'SP',True),
+            ('78901234000166', 'Mattel do Brasil LTDA', 'Mattel', '11-5090-8500', 'sac@mattel.com.br', 'Av. Tamboré, 1400', 'Barueri', 'SP',True),
+            ('89012345000177', 'Editora Intrínseca LTDA', 'Intrínseca', '21-2206-7400', 'contato@intrinseca.com.br', 'Rua Marquês de São Vicente, 99', 'Rio de Janeiro', 'RJ',True),
+            ('90123456000188', 'JBL do Brasil', 'JBL', '11-3048-1700', 'suporte@jbl.com.br', 'Rua James Clerk Maxwell, 170', 'Campinas', 'SP',True),
+            ('01234567000199', 'Melitta do Brasil', 'Melitta', '47-3801-5000', 'sac@melitta.com.br', 'Rua Dona Francisca, 8300', 'Joinville', 'SC',True),
+        ]),
+
+        # 7) Compras
+        ("""
+         INSERT INTO compra
+           (numero_compra,id_fornecedor,id_loja,data_compra,valor_total,status_compra)
+         VALUES (%s,%s,%s,%s,%s,%s)
+         ON CONFLICT (numero_compra) DO NOTHING;
+        """, [
+            ('CP202401001', 1, 1, '2024-01-05 09:00:00', 28000.00, 'Recebida'),
+            ('CP202401002', 2, 1, '2024-01-08 10:30:00', 11500.00, 'Recebida'),
+            ('CP202401003', 3, 2, '2024-01-10 14:00:00', 1355.00, 'Recebida'),
+            ('CP202401004', 4, 3, '2024-01-12 11:15:00', 6400.00, 'Recebida'),
+            ('CP202401005', 5, 4, '2024-01-14 15:30:00', 2400.00, 'Recebida'),
+            ('CP202401006', 6, 5, '2024-01-16 09:45:00', 850.00, 'Em Trânsito'),
+            ('CP202401007', 7, 6, '2024-01-18 13:00:00', 3600.00, 'Recebida'),
+            ('CP202401008', 8, 7, '2024-01-20 10:00:00', 390.00, 'Recebida'),
+            ('CP202401009', 9, 8, '2024-01-22 14:30:00', 1990.00, 'Recebida'),
+            ('CP202401010', 10, 1, '2024-01-24 11:00:00', 995.00, 'Em Trânsito'),
+            # … outras compras …
+        ]),
+
+        # 8) Itens de Compra
+        ("""
+         INSERT INTO item_compra
+           (id_compra,id_produto,quantidade,preco_unitario,valor_total)
          VALUES (%s,%s,%s,%s,%s)
          ON CONFLICT DO NOTHING;
-        """,
-         [
+        """, [
+            #-- Compra 1 - Samsung
+            (1, 1, 10, 2800.00, 28000.00),
+
+            #-- Compra 2 - Dell
+            (2, 2, 5, 2300.00, 11500.00),
+
+            #-- Compra 3 - Nestlé
+            (3, 7, 50, 20.00, 1000.00),
+            (3, 8, 50, 6.50, 325.00),
+            (3, 10, 10, 3.00, 30.00),
+
+            #-- Compra 4 - Nike
+            (4, 13, 20, 320.00, 6400.00),
+
+            #-- Compra 5 - Tramontina
+            (5, 16, 10, 240.00, 2400.00),
+
+            #-- Compra 6 - P&G
+            (6, 21, 30, 14.50, 435.00),
+            (6, 22, 20, 19.00, 380.00),
+            (6, 26, 5, 7.00, 35.00),
+
+            #-- Compra 7 - Mattel
+            (7, 37, 20, 120.00, 2400.00),
+            (7, 40, 100, 9.90, 990.00),
+            (7, 38, 15, 14.00, 210.00),
+
+            #-- Compra 8 - Intrínseca
+            (8, 31, 10, 39.00, 390.00),
+
+            #-- Compra 9 - JBL
+            (9, 4, 10, 199.00, 1990.00),
+
+            #-- Compra 10 - Melitta
+            (10, 6, 50, 19.90, 995.00),
+        ]),
+
+        # 9) Estoque
+        ("""
+         INSERT INTO estoque
+           (id_produto,id_loja,quantidade_atual,quantidade_minima,quantidade_maxima)
+         VALUES (%s,%s,%s,%s,%s)
+         ON CONFLICT (id_produto,id_loja) DO UPDATE
+           SET quantidade_atual=EXCLUDED.quantidade_atual,
+               quantidade_minima=EXCLUDED.quantidade_minima,
+               quantidade_maxima=EXCLUDED.quantidade_maxima;
+        """, [
+            #-- Loja SP
+            (1, 1, 25, 5, 50),
+            (2, 1, 15, 3, 30),
+            (3, 1, 20, 5, 40),
+            (4, 1, 50, 10, 100),
+            (5, 1, 45, 10, 80),
+            (6, 1, 200, 50, 400),
+            (7, 1, 150, 30, 300),
+
+            #-- Loja RJ
+            (1, 2, 20, 5, 40),
+            (3, 2, 15, 3, 30),
+            (8, 2, 180, 40, 350),
+            (9, 2, 220, 50, 400),
+            (10, 2, 240, 50, 450),
+            (11, 2, 30, 10, 60),
+            (12, 2, 25, 10, 50),
+
+            #-- Loja BH
+            (13, 3, 35, 10, 70),
+            (14, 3, 40, 10, 80),
+            (15, 3, 30, 10, 60),
+            (16, 3, 20, 5, 40),
+            (17, 3, 25, 5, 50),
+            (18, 3, 15, 5, 30),
+
+            #-- Loja PE
+            (19, 4, 8, 2, 15),
+            (20, 4, 45, 10, 90),
+            (21, 4, 80, 20, 150),
+            (22, 4, 90, 20, 180),
+            (23, 4, 12, 3, 25),
+            (24, 4, 18, 5, 35),
+
+            #-- Loja BA
+            (25, 5, 30, 10, 60),
+            (26, 5, 35, 10, 70),
+            (27, 5, 85, 20, 170),
+            (28, 5, 65, 15, 130),
+            (29, 5, 50, 10, 100),
+            (30, 5, 40, 10, 80),
+        ]),
+
+        # 10) Vendas
+        ("""
+         INSERT INTO venda
+           (id_produto,quantidade,valor_total,data_venda)
+         VALUES (%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+            (1,  1, 3698.90, '2024-01-15 10:30:00'),
+            (2,  1, 449.80,  '2024-01-15 14:45:00'),
+            (3,  1, 2199.00, '2024-01-16 11:00:00'),
+            (4,  1, 279.80,  '2024-01-17 15:30:00'),
+            (5,  1, 519.70,  '2024-01-18 09:15:00'),
+            (6,  1, 89.90,   '2024-01-19 16:00:00'),
+            (7,  1, 1499.00, '2024-01-20 10:45:00'),
+            (8,  1, 349.70,  '2024-01-21 13:20:00'),
+            (9,  1, 169.80,  '2024-01-22 11:30:00'),
+            (10, 1, 787.50,  '2024-01-23 14:00:00'),
+            (11, 1, 4298.80, '2024-02-01 09:30:00'),
+            (12, 1, 199.90,  '2024-02-02 15:45:00'),
+            (13, 1, 659.60,  '2024-02-03 10:15:00'),
+            (14, 1, 89.90,   '2024-02-04 14:30:00'),
+            (15, 1, 349.80,  '2024-02-05 11:00:00'),
+        ]),
+
+        #funcionarios
+        ("""
+         INSERT INTO funcionarios
+           (codigo_funcionario, nome, cargo, id_loja, salario, ativo)
+         VALUES (%s,%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
             ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00),
             ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00),
             ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00),
             ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00),
 
+            #-- Loja RJ
             ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00),
             ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00),
             ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00),
             ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00),
 
+            #-- Loja BH
             ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00),
             ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00),
             ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00),
             ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00),
 
+            #-- Loja PE
             ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00),
             ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00),
             ('FUNC015', 'Beatriz Nunes', 'Vendedor', 4, 2500.00),
             ('FUNC016', 'Cláudio Ribeiro', 'Caixa', 4, 2200.00),
 
+            #-- Loja BA
             ('FUNC017', 'João Pereira', 'Gerente', 5, 8000.00),
             ('FUNC018', 'Sandra Matos', 'Vendedor', 5, 2500.00),
             ('FUNC019', 'Marcos Dias', 'Vendedor', 5, 2500.00),
             ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00),
-         ]),
+        ]),
+
+        #funcionarios
+        ("""
+         INSERT INTO funcionarios
+           (codigo_funcionario, nome, cargo, id_loja, salario, ativo)
+         VALUES (%s,%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+            ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00),
+            ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00),
+            ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00),
+            ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00),
+
+            #-- Loja RJ
+            ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00),
+            ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00),
+            ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00),
+            ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00),
+
+            #-- Loja BH
+            ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00),
+            ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00),
+            ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00),
+            ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00),
+
+            #-- Loja PE
+            ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00),
+            ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00),
+            ('FUNC015', 'Beatriz Nunes', 'Vendedor', 4, 2500.00),
+            ('FUNC016', 'Cláudio Ribeiro', 'Caixa', 4, 2200.00),
+
+            #-- Loja BA
+            ('FUNC017', 'João Pereira', 'Gerente', 5, 8000.00),
+            ('FUNC018', 'Sandra Matos', 'Vendedor', 5, 2500.00),
+            ('FUNC019', 'Marcos Dias', 'Vendedor', 5, 2500.00),
+            ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00),
+        ]),
+
+        #clientes
+        ("""
+         INSERT INTO clientes
+           (cpf, nome, email, telefone, endereco, cidade, estado, cep)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+            ('12345678901', 'Paulo Henrique Silva', 'paulo.silva@email.com', '11-98765-4321', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234567', True),
+            ('23456789012', 'Ana Maria Santos', 'ana.santos@email.com', '11-97654-3210', 'Av. Paulista, 456', 'São Paulo', 'SP', '01310100', True),
+            ('34567890123', 'Roberto Carlos Oliveira', 'roberto.oliveira@email.com', '21-96543-2109', 'Rua Copacabana, 789', 'Rio de Janeiro', 'RJ', '22020050', True),
+            ('45678901234', 'Juliana Costa Lima', 'juliana.lima@email.com', '31-95432-1098', 'Av. Afonso Pena, 321', 'Belo Horizonte', 'MG', '30130005', True),
+            ('56789012345', 'Fernando Alves Costa', 'fernando.costa@email.com', '81-94321-0987', 'Av. Boa Viagem, 654', 'Recife', 'PE', '51020180', True),
+            ('67890123456', 'Mariana Ferreira Souza', 'mariana.souza@email.com', '71-93210-9876', 'Av. Oceânica, 987', 'Salvador', 'BA', '40160060', True),
+            ('78901234567', 'Alexandre Martins Silva', 'alexandre.silva@email.com', '51-92109-8765', 'Rua da Praia, 147', 'Porto Alegre', 'RS', '90020060', True),
+            ('89012345678', 'Camila Rodrigues Santos', 'camila.santos@email.com', '61-91098-7654', 'SQS 308 Bloco C', 'Brasília', 'DF', '70355030', True),
+            ('90123456789', 'Ricardo Pereira Lima', 'ricardo.lima@email.com', '41-90987-6543', 'Rua XV de Novembro, 258', 'Curitiba', 'PR', '80020310', True),
+            ('01234567890', 'Patricia Almeida Costa', 'patricia.costa@email.com', '11-89876-5432', 'Alameda Santos, 369', 'São Paulo', 'SP', '01419002', True),
+            ('11223344556', 'Bruno Carvalho Dias', 'bruno.dias@email.com', '21-88765-4321', 'Av. Rio Branco, 741', 'Rio de Janeiro', 'RJ', '20040008', True),
+            ('22334455667', 'Letícia Nunes Oliveira', 'leticia.oliveira@email.com', '31-87654-3210', 'Rua da Bahia, 852', 'Belo Horizonte', 'MG', '30160011', True),
+            ('33445566778', 'Carlos Eduardo Santos', 'carlos.santos@email.com', '81-86543-2109', 'Rua do Sol, 963', 'Recife', 'PE', '50030230', True),
+            ('44556677889', 'Daniela Sousa Lima', 'daniela.lima@email.com', '71-85432-1098', 'Av. Sete de Setembro, 159', 'Salvador', 'BA', '40060500', True),
+            ('55667788990', 'Marcelo Ferreira Costa', 'marcelo.costa@email.com', '51-84321-0987', 'Av. Ipiranga, 753', 'Porto Alegre', 'RS', '90160091', True),
+        ]),
     ]
 
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
-            for sql, params_list in inserts:
-                cur.executemany(sql, params_list)
+            for sql, params in inserts:
+                cur.executemany(sql, params)
     conn.close()
+    # finalmente, copia tudo para o ZODB
     migrar_tudo_para_zodb()
 
+def test_system():
+    test_integracao()
 
 def criar_esquemas():
     criar_tabelas()
@@ -503,6 +845,7 @@ COMMANDS = {
     'itemcompra':('Menu item compra', lambda: create_submenu('ItemCompra', submenu_itemcomp)),
     'venda'    :('Menu venda', lambda: create_submenu('Venda', submenu_venda)),
     'comentario':('Menu comentário', lambda: create_submenu('Comentário', submenu_coment)),
+    'teste':('Testar Integridade do Sistema', test_system),
     'sair'     :('Sair', lambda: exit())
 }
 
