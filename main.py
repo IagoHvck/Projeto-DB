@@ -1,7 +1,6 @@
 from ZODB import FileStorage, DB
 import transaction
 import ZODB
-from database.popular import popular as popular_func
 from datetime import datetime
 from database.produto_repo import replicar_para_zodb
 from database.produto_repo import inserir_produto_zodb
@@ -365,78 +364,23 @@ def popular():
             (15, 1, 349.80,  '2024-02-05 11:00:00'),
         ]),
 
-        #funcionarios
+        #fornecedores
         ("""
-         INSERT INTO funcionarios
-           (codigo_funcionario, nome, cargo, id_loja, salario, ativo)
-         VALUES (%s,%s,%s,%s,%s,%s)
+         INSERT INTO fornecedor
+           (cnpj, razao_social, nome_fantasia, telefone, email, endereco, cidade, estado, ativo)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
          ON CONFLICT DO NOTHING;
         """, [
-            ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00),
-            ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00),
-            ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00),
-            ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00),
-
-            #-- Loja RJ
-            ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00),
-            ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00),
-            ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00),
-            ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00),
-
-            #-- Loja BH
-            ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00),
-            ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00),
-            ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00),
-            ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00),
-
-            #-- Loja PE
-            ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00),
-            ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00),
-            ('FUNC015', 'Beatriz Nunes', 'Vendedor', 4, 2500.00),
-            ('FUNC016', 'Cláudio Ribeiro', 'Caixa', 4, 2200.00),
-
-            #-- Loja BA
-            ('FUNC017', 'João Pereira', 'Gerente', 5, 8000.00),
-            ('FUNC018', 'Sandra Matos', 'Vendedor', 5, 2500.00),
-            ('FUNC019', 'Marcos Dias', 'Vendedor', 5, 2500.00),
-            ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00),
-        ]),
-
-        #funcionarios
-        ("""
-         INSERT INTO funcionarios
-           (codigo_funcionario, nome, cargo, id_loja, salario, ativo)
-         VALUES (%s,%s,%s,%s,%s,%s)
-         ON CONFLICT DO NOTHING;
-        """, [
-            ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00),
-            ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00),
-            ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00),
-            ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00),
-
-            #-- Loja RJ
-            ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00),
-            ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00),
-            ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00),
-            ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00),
-
-            #-- Loja BH
-            ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00),
-            ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00),
-            ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00),
-            ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00),
-
-            #-- Loja PE
-            ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00),
-            ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00),
-            ('FUNC015', 'Beatriz Nunes', 'Vendedor', 4, 2500.00),
-            ('FUNC016', 'Cláudio Ribeiro', 'Caixa', 4, 2200.00),
-
-            #-- Loja BA
-            ('FUNC017', 'João Pereira', 'Gerente', 5, 8000.00),
-            ('FUNC018', 'Sandra Matos', 'Vendedor', 5, 2500.00),
-            ('FUNC019', 'Marcos Dias', 'Vendedor', 5, 2500.00),
-            ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00),
+            ('12345678000100', 'Samsung Eletrônicos do Brasil LTDA', 'Samsung Brasil', '11-5644-2000', 'contato@samsung.com.br', 'Av. Dr. Chucri Zaidan, 1240', 'São Paulo', 'SP', True),
+            ('23456789000111', 'Dell Computadores do Brasil LTDA', 'Dell Brasil', '11-5503-5000', 'vendas@dell.com.br', 'Av. Industrial, 700', 'Eldorado do Sul', 'RS', True),
+            ('34567890000122', 'Nestlé Brasil LTDA', 'Nestlé', '11-2199-2999', 'faleconosco@nestle.com.br', 'Av. Nações Unidas, 12495', 'São Paulo', 'SP', True),
+            ('45678901000133', 'Nike do Brasil Com. e Part. LTDA', 'Nike Brasil', '11-5102-4400', 'atendimento@nike.com.br', 'Av. das Nações Unidas, 14261', 'São Paulo', 'SP', True),
+            ('56789012000144', 'Tramontina S.A.', 'Tramontina', '54-3461-8200', 'sac@tramontina.com.br', 'Rod. RS-324 Km 2,5', 'Carlos Barbosa', 'RS', True),
+            ('67890123000155', 'Procter & Gamble do Brasil S.A.', 'P&G Brasil', '11-3046-5800', 'atendimento@pg.com.br', 'Av. Brigadeiro Faria Lima, 3900', 'São Paulo', 'SP', True),
+            ('78901234000166', 'Mattel do Brasil LTDA', 'Mattel', '11-5090-8500', 'sac@mattel.com.br', 'Av. Tamboré, 1400', 'Barueri', 'SP', True),
+            ('89012345000177', 'Editora Intrínseca LTDA', 'Intrínseca', '21-2206-7400', 'contato@intrinseca.com.br', 'Rua Marquês de São Vicente, 99', 'Rio de Janeiro', 'RJ', True),
+            ('90123456000188', 'JBL do Brasil', 'JBL', '11-3048-1700', 'suporte@jbl.com.br', 'Rua James Clerk Maxwell, 170', 'Campinas', 'SP', True),
+            ('01234567000199', 'Melitta do Brasil', 'Melitta', '47-3801-5000', 'sac@melitta.com.br', 'Rua Dona Francisca, 8300', 'Joinville', 'SC', True),
         ]),
 
         #clientes
@@ -461,6 +405,40 @@ def popular():
             ('33445566778', 'Carlos Eduardo Santos', 'carlos.santos@email.com', '81-86543-2109', 'Rua do Sol, 963', 'Recife', 'PE', '50030230', True),
             ('44556677889', 'Daniela Sousa Lima', 'daniela.lima@email.com', '71-85432-1098', 'Av. Sete de Setembro, 159', 'Salvador', 'BA', '40060500', True),
             ('55667788990', 'Marcelo Ferreira Costa', 'marcelo.costa@email.com', '51-84321-0987', 'Av. Ipiranga, 753', 'Porto Alegre', 'RS', '90160091', True),
+        ]),
+
+        #item-compra
+        ("""
+         INSERT INTO item_compra
+            (id_compra,id_produto,quantidade,preco_unitario,valor_total)
+        VALUES(%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+            (1,  1,  10, 2800.00, 28000.00),
+            #-- Compra 2 - Dell
+            (2,  2,   5, 2300.00, 11500.00),
+            #-- Compra 3 - Nestlé
+            (3,  7,  50,   20.00,  1000.00),
+            (3,  8,  50,    6.50,   325.00),
+            (3, 10,  10,    3.00,    30.00),
+            #-- Compra 4 - Nike
+            (4, 13,  20,  320.00,  6400.00),
+            #-- Compra 5 - Tramontina
+            (5, 16,  10,  240.00,  2400.00),
+            #-- Compra 6 - P&G
+            (6, 21,  30,   14.50,   435.00),
+            (6, 22,  20,   19.00,   380.00),
+            (6, 26,   5,    7.00,    35.00),
+            #-- Compra 7 - Mattel
+            (7, 37,  20,  120.00,  2400.00),
+            (7, 40, 100,    9.90,   990.00),
+            (7, 38,  15,   14.00,   210.00),
+            #-- Compra 8 - Intrínseca
+            (8, 31,  10,   39.00,   390.00),
+            #-- Compra 9 - JBL
+            (9,  4,  10,  199.00,  1990.00),
+            #-- Compra 10 - Melitta
+            (10, 6,  50,   19.90,   995.00),
         ]),
     ]
 
