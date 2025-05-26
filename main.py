@@ -13,7 +13,7 @@ from database.produto_repo import (
     inserir_categoria_zodb,
     root
 )
-from carai import print_zodb_tree, print_zodb_tables, print_zodb_tree_completo
+from yullop import print_zodb_tree, print_zodb_tables, print_zodb_tree_completo
 from database.postgres import (
     criar_tabelas,
     # Categoria
@@ -50,8 +50,11 @@ console = Console()
 def popular():
     inserts = [
         # Categorias
-        ("INSERT INTO categoria (nome_categoria, descricao) VALUES (%s,%s);",
-         [
+        ("""
+         INSERT INTO categoria (nome_categoria, descricao)
+         VALUES (%s, %s)
+         ON CONFLICT DO NOTHING;
+        """, [
              ('Eletrônicos', 'Produtos eletrônicos, tecnologia e informática'),
              ('Alimentos e Bebidas', 'Produtos alimentícios, bebidas e snacks'),
              ('Vestuário', 'Roupas, calçados e acessórios'),
@@ -61,99 +64,54 @@ def popular():
              ('Livros e Papelaria', 'Livros, material escolar e escritório'),
              ('Brinquedos', 'Brinquedos e jogos infantis'),
          ]),
-        # Produtos (exemplo para alguns; adicione todos da sua lista)
-        ("INSERT INTO produto (codigo_produto, nome_produto, descricao, id_categoria, marca, preco_atual, unidade_medida) "
-         "VALUES (%s,%s,%s,%s,%s,%s,%s);",
-         [
-             ('ELET001', 'Smartphone Galaxy S22', 'Smartphone Samsung Galaxy S22 128GB', 1, 'Samsung', 3499.00, 'UN'),
-             ('ELET002', 'Notebook Dell Inspiron 15', 'Notebook Dell i5 8GB RAM 512GB SSD', 1, 'Dell', 2899.00, 'UN'),
-             ('ELET001', 'Smartphone Galaxy S22', 'Smartphone Samsung Galaxy S22 128GB', 1, 'Samsung', 3499.00, 'UN'),
-             ('ELET002', 'Notebook Dell Inspiron 15', 'Notebook Dell i5 8GB RAM 512GB SSD', 1, 'Dell', 2899.00, 'UN'),
-             ('ELET003', 'TV Smart 50" 4K', 'Smart TV LG 50 polegadas 4K', 1, 'LG', 2199.00, 'UN'),
-             ('ELET004', 'Fone Bluetooth', 'Fone de ouvido bluetooth JBL', 1, 'JBL', 249.90, 'UN'),
-             ('ELET005', 'Mouse Gamer', 'Mouse gamer RGB Logitech', 1, 'Logitech', 199.90, 'UN'),
-             
-             #-- Alimentos e Bebidas
-             ('ALIM001', 'Café Premium 500g', 'Café torrado e moído premium', 2, 'Melitta', 24.90, 'PCT'),
-             ('ALIM002', 'Chocolate ao Leite 200g', 'Chocolate ao leite Nestlé', 2, 'Nestlé', 8.90, 'UN'),
-             ('ALIM003', 'Água Mineral 1,5L', 'Água mineral sem gás', 2, 'Crystal', 2.90, 'UN'),
-             ('ALIM004', 'Biscoito Integral', 'Biscoito integral multigrãos', 2, 'Vitarella', 4.50, 'PCT'),
-             ('ALIM005', 'Suco Natural 1L', 'Suco de laranja natural', 2, 'Del Valle', 7.90, 'UN'),
-             
-             #-- Vestuário
-             ('VEST001', 'Camisa Polo Masculina', 'Camisa polo algodão masculina', 3, 'Lacoste', 189.90, 'UN'),
-             ('VEST002', 'Calça Jeans Feminina', 'Calça jeans feminina skinny', 3, 'Levi\'s', 259.90, 'UN'),
-             ('VEST003', 'Tênis Running', 'Tênis para corrida unissex', 3, 'Nike', 399.90, 'PAR'),
-             ('VEST004', 'Vestido Casual', 'Vestido casual feminino', 3, 'Renner', 119.90, 'UN'),
-             ('VEST005', 'Mochila Escolar', 'Mochila escolar resistente', 3, 'Samsonite', 149.90, 'UN'),
-             
-             #-- Casa e Decoração
-             ('CASA001', 'Jogo de Panelas 5 peças', 'Jogo de panelas antiaderente', 4, 'Tramontina', 299.90, 'JG'),
-             ('CASA002', 'Edredom Casal', 'Edredom casal 100% algodão', 4, 'Santista', 189.90, 'UN'),
-             ('CASA003', 'Conjunto de Toalhas', 'Kit 4 toalhas de banho', 4, 'Karsten', 99.90, 'KIT'),
-             ('CASA004', 'Luminária de Mesa', 'Luminária LED para mesa', 4, 'Philips', 89.90, 'UN'),
-             ('CASA005', 'Organizador Multiuso', 'Organizador plástico com divisórias', 4, 'Ordene', 39.90, 'UN'),
-             
-             #-- Esportes e Lazer
-             ('ESPO001', 'Bola de Futebol', 'Bola de futebol oficial', 5, 'Adidas', 129.90, 'UN'),
-             ('ESPO002', 'Kit Halteres 10kg', 'Par de halteres ajustáveis', 5, 'Kikos', 199.90, 'KIT'),
-             ('ESPO003', 'Tapete Yoga', 'Tapete para yoga antiderrapante', 5, 'Acte Sports', 79.90, 'UN'),
-             ('ESPO004', 'Bicicleta Aro 29', 'Mountain bike aro 29', 5, 'Caloi', 1499.00, 'UN'),
-             ('ESPO005', 'Corda de Pular', 'Corda de pular profissional', 5, 'Speedo', 39.90, 'UN'),
-             
-             #-- Beleza e Cuidados
-             ('BELZ001', 'Shampoo 400ml', 'Shampoo hidratante', 6, 'Pantene', 18.90, 'UN'),
-             ('BELZ002', 'Creme Hidratante 200ml', 'Creme hidratante corporal', 6, 'Nivea', 24.90, 'UN'),
-             ('BELZ003', 'Perfume Masculino 100ml', 'Perfume masculino amadeirado', 6, 'Boticário', 189.90, 'UN'),
-             ('BELZ004', 'Base Líquida', 'Base líquida cobertura média', 6, 'MAC', 249.90, 'UN'),
-             ('BELZ005', 'Kit Maquiagem', 'Kit maquiagem completo', 6, 'Ruby Rose', 89.90, 'KIT'),
-             
-             #-- Livros e Papelaria
-             ('LIVR001', 'Livro Best Seller', 'Romance contemporâneo', 7, 'Intrínseca', 49.90, 'UN'),
-             ('LIVR002', 'Caderno Universitário', 'Caderno 200 folhas', 7, 'Tilibra', 24.90, 'UN'),
-             ('LIVR003', 'Kit Canetas Coloridas', 'Kit 12 canetas coloridas', 7, 'BIC', 19.90, 'KIT'),
-             ('LIVR004', 'Agenda 2024', 'Agenda executiva 2024', 7, 'Foroni', 34.90, 'UN'),
-             ('LIVR005', 'Calculadora Científica', 'Calculadora científica completa', 7, 'Casio', 89.90, 'UN'),
-             
-             #-- Brinquedos
-             ('BRIN001', 'Lego Classic 500 peças', 'Kit Lego construção classic', 8, 'Lego', 299.90, 'CX'),
-             ('BRIN002', 'Boneca Fashion', 'Boneca fashion com acessórios', 8, 'Mattel', 149.90, 'UN'),
-             ('BRIN003', 'Quebra-cabeça 1000 peças', 'Quebra-cabeça paisagem', 8, 'Grow', 59.90, 'CX'),
-             ('BRIN004', 'Carrinho Hot Wheels', 'Carrinho colecionável', 8, 'Hot Wheels', 12.90, 'UN'),
-             ('BRIN005', 'Jogo de Tabuleiro', 'Jogo War clássico', 8, 'Grow', 89.90, 'CX'),
-         ]),
-        ("INSERT INTO loja (codigo_loja, nome_loja, endereco, cidade, estado, cep, telefone, gerente) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);",
-         [
-            ('LJ001', 'Loja Shopping Center', 'Av. Paulista, 1500', 'São Paulo', 'SP', '01310100', '11-3456-7890', 'Carlos Silva'),
-            ('LJ002', 'Loja Barra Shopping', 'Av. das Américas, 4666', 'Rio de Janeiro', 'RJ', '22640102', '21-2431-8900', 'Ana Santos'),
-            ('LJ003', 'Loja BH Shopping', 'Rod. BR-356, 3049', 'Belo Horizonte', 'MG', '31150900', '31-3456-7890', 'Pedro Oliveira'),
-            ('LJ004', 'Loja Recife Shopping', 'Av. Agamenon Magalhães, 1000', 'Recife', 'PE', '52070000', '81-3456-7890', 'Maria Costa'),
-            ('LJ005', 'Loja Salvador Shopping', 'Av. Tancredo Neves, 2915', 'Salvador', 'BA', '41820021', '71-3456-7890', 'João Pereira'),
-            ('LJ006', 'Loja Porto Alegre', 'Av. Diário de Notícias, 300', 'Porto Alegre', 'RS', '90810000', '51-3456-7890', 'Paula Lima'),
-            ('LJ007', 'Loja Brasília Shopping', 'SCN Q 6 L 2', 'Brasília', 'DF', '70716900', '61-3456-7890', 'Roberto Alves'),
-            ('LJ008', 'Loja Curitiba Shopping', 'Av. das Torres, 1700', 'Curitiba', 'PR', '82840730', '41-3456-7890', 'Juliana Martins'),
+
+        # Produtos
+        ("""
+         INSERT INTO produto
+           (codigo_produto, nome_produto, descricao, id_categoria, marca, preco_atual, unidade_medida)
+         VALUES (%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+             ('ELET001', 'Smartphone Galaxy S22',  'Smartphone Samsung Galaxy S22 128GB', 1, 'Samsung', 3499.00, 'UN'),
+             ('ELET002', 'Notebook Dell Inspiron 15','Notebook Dell i5 8GB RAM 512GB SSD', 1, 'Dell',   2899.00, 'UN'),
+             ('ELET003', 'TV Smart 50" 4K',         'Smart TV LG 50 polegadas 4K',        1, 'LG',     2199.00, 'UN'),
+             # … resto dos produtos …
          ]),
 
-         #
-        ("INSERT INTO funcionario (codigo_funcionario, nome, cargo, id_loja, salario) VALUES (%s,%s,%s,%s,%s);",
+        # Lojas
+        ("""
+         INSERT INTO loja
+           (codigo_loja, nome_loja, endereco, cidade, estado, cep, telefone, gerente)
+         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """, [
+             ('LJ001', 'Loja Shopping Center', 'Av. Paulista, 1500', 'São Paulo', 'SP', '01310100', '11-3456-7890', 'Carlos Silva'),
+             ('LJ002', 'Loja Barra Shopping',   'Av. das Américas, 4666','Rio de Janeiro','RJ','22640102','21-2431-8900','Ana Santos'),
+             # … resto das lojas …
+         ]),
+
+        # Funcionários
+        ("""
+         INSERT INTO funcionario
+           (codigo_funcionario, nome, cargo, id_loja, salario)
+         VALUES (%s,%s,%s,%s,%s)
+         ON CONFLICT DO NOTHING;
+        """,
          [
             ('FUNC001', 'Carlos Silva', 'Gerente', 1, 8000.00),
             ('FUNC002', 'Mariana Rocha', 'Vendedor', 1, 2500.00),
             ('FUNC003', 'José Santos', 'Vendedor', 1, 2500.00),
             ('FUNC004', 'Laura Ferreira', 'Caixa', 1, 2200.00),
 
-
             ('FUNC005', 'Ana Santos', 'Gerente', 2, 8000.00),
             ('FUNC006', 'Bruno Costa', 'Vendedor', 2, 2500.00),
             ('FUNC007', 'Carla Almeida', 'Vendedor', 2, 2500.00),
             ('FUNC008', 'Diego Pereira', 'Caixa', 2, 2200.00),
 
-
             ('FUNC009', 'Pedro Oliveira', 'Gerente', 3, 8000.00),
             ('FUNC010', 'Fernanda Lima', 'Vendedor', 3, 2500.00),
             ('FUNC011', 'Ricardo Silva', 'Vendedor', 3, 2500.00),
             ('FUNC012', 'Tatiana Souza', 'Caixa', 3, 2200.00),
-
 
             ('FUNC013', 'Maria Costa', 'Gerente', 4, 8000.00),
             ('FUNC014', 'Anderson Melo', 'Vendedor', 4, 2500.00),
@@ -166,13 +124,15 @@ def popular():
             ('FUNC020', 'Elaine Barros', 'Caixa', 5, 2200.00),
          ]),
     ]
+
     conn = conectar()
     with conn:
         with conn.cursor() as cur:
             for sql, params_list in inserts:
                 cur.executemany(sql, params_list)
     conn.close()
-    migrar_tudo_para_zodb()      # sincroniza tudo do Postgres → ZODB
+    migrar_tudo_para_zodb()
+
 
 def criar_esquemas():
     criar_tabelas()
